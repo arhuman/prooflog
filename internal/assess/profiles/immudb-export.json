@@ -1,0 +1,10 @@
+{
+  "name": "immudb-export",
+  "description": "immudb key-value export with the transaction id as sequence. Note: the tx id is monotonic per database, not per business source, so sequence gaps reflect the whole store's transaction stream, not one source's events.",
+  "source_id":  { "field": "source", "default": "immudb" },
+  "timestamp":  { "field": "ts", "layout": "unix" },
+  "sequence":   { "field": "tx" },
+  "actor":      { "field": "actor" },
+  "event_type": { "field": "type" },
+  "heartbeat":  null
+}

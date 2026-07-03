@@ -1,0 +1,21 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - contextcheck
+    - govet
+    - noctx
+    - revive
+    - sqlclosecheck
+    - staticcheck
+  settings:
+    staticcheck:
+      checks:
+        - "all"
+        - "-ST1000"
+        - "-U1000"
+formatters:
+  enable:
+    - gofmt

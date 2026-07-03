@@ -1,0 +1,10 @@
+{
+  "name": "idp-signin",
+  "description": "Managed IdP sign-in/audit export (Graph-style JSON). No sequence and no heartbeat: gap and observation-gap analysis are impossible on this export, which the assessment states explicitly.",
+  "source_id":  { "const": "idp/tenant-primary" },
+  "timestamp":  { "field": "createdDateTime", "layout": "rfc3339" },
+  "sequence":   null,
+  "actor":      { "field": "userPrincipalName" },
+  "event_type": { "field": "activityDisplayName", "default": "idp.signin" },
+  "heartbeat":  null
+}

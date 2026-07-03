@@ -1,0 +1,153 @@
+# Glossary
+
+Acronyms, RFCs, protocols, and cryptographic algorithms/norms used in the
+Prooflog documentation and code comments, in alphabetical order. Every
+technical term used inside a definition has its own entry.
+
+- **AAD** (Additional Authenticated Data): data an AEAD cipher authenticates without encrypting, used to bind a ciphertext to its context.
+- **ACK** (Acknowledgement): confirmation from the store that a segment is durably persisted; the agent only advances its upload offset after it.
+- **AEAD** (Authenticated Encryption with Associated Data): cipher construction providing confidentiality and integrity in one operation.
+- **AES** (Advanced Encryption Standard): NIST block cipher, used here only in the AES-256-GCM alternative mode.
+- **AES-256-GCM**: AEAD combining AES with a 256-bit key and GCM mode (NIST SP 800-38D), reserved as the pluggable alternative for a future FIPS deployment mode.
+- **age**: file-encryption format and tool (C2SP spec) used to encrypt event payloads client-side with single-use file keys for an X25519 recipient.
+- **AICPA** (American Institute of Certified Public Accountants): body that defines the Trust Services Criteria behind SOC 2 audits.
+- **append-only**: a storage discipline where records can only be added, never modified or deleted in place; sealed spool files and the per-source Merkle log are append-only.
+- **BCP** (Best Current Practice): IETF document status; RFC 3227 is BCP 55.
+- **block cipher**: a symmetric cipher operating on fixed-size blocks of data (AES uses 128-bit blocks); contrast with a stream cipher.
+- **C2SP** (Community Cryptography Specification Project): home of the age, signed-note, and tlog-checkpoint specifications Prooflog implements.
+- **CBOR** (Concise Binary Object Representation): compact binary serialization format that COSE builds on.
+- **CC** (Common Criteria, ISO/IEC 15408): security-evaluation framework whose FAU_GEN.1 control defines minimum audit-record fields and whose FAU_STG.2 "detect" option names Prooflog's tamper-evident (not tamper-proof) posture.
+- **CGO**: Go's mechanism for calling C code; avoided (CGO-free dependencies) so the binary stays statically linked.
+- **ChaCha20**: 256-bit stream cipher, the encryption half of ChaCha20-Poly1305.
+- **ChaCha20-Poly1305**: AEAD cipher (RFC 8439) combining ChaCha20 encryption with Poly1305 authentication, used by age to encrypt payloads.
+- **C-I-A** (Confidentiality, Integrity, Availability): the three impact dimensions regulators ask incident reports to assess.
+- **CI/CD** (Continuous Integration/Delivery): automation pipelines that are a first-class event source for deployment evidence.
+- **ciphertext**: the encrypted output of a cipher; opaque bytes the Store holds but cannot read.
+- **CLI** (Command-Line Interface): the `prooflog` binary and its subcommands.
+- **COSE** (CBOR Object Signing and Encryption, RFC 9052): standard signing envelope, assessed and rejected as core format in favor of C2SP signed notes.
+- **CRA** (Cyber Resilience Act, EU Regulation 2024/2847): imposes 24h/72h vulnerability and incident reporting on product manufacturers from September 2026.
+- **CSIRT** (Computer Security Incident Response Team): national body receiving NIS2 and CRA notifications.
+- **CSV** (Cybersicherheitsverordnung / Cybersecurity Ordinance): Swiss ordinance operationalizing the ISA reporting duty.
+- **CT** (Certificate Transparency): the public append-only Merkle-log design (RFC 6962/9162) Prooflog's per-source trees follow.
+- **Curve25519**: elliptic curve underlying both X25519 key agreement and Ed25519 signatures.
+- **DH** (Diffie-Hellman): key-agreement scheme in which two parties derive a shared secret from their key pairs; X25519 is its Curve25519 instantiation.
+- **DNS** (Domain Name System): internet name-resolution service; DNS providers are among the entity types directly bound by NIS2.
+- **domain separation**: prefixing distinct input types with distinct constant bytes before hashing so a hash from one context cannot be reused in another (RFC 6962 prefixes leaves with 0x00 and nodes with 0x01).
+- **DORA** (Digital Operational Resilience Act, EU Regulation 2022/2554): financial-sector regulation with 4h/24h/72h/1-month incident reporting.
+- **DPO** (Data Protection Officer): mandatory contact point in GDPR breach notifications.
+- **DSSE** (Dead Simple Signing Envelope): Sigstore attestation envelope, a possible future export format only.
+- **Ed25519**: EdDSA signature scheme over Curve25519 (RFC 8032, NIST-approved via FIPS 186-5) used for all Prooflog signatures.
+- **EdDSA** (Edwards-curve Digital Signature Algorithm): the signature family Ed25519 belongs to.
+- **EHP**: FINMA's survey and application platform through which the structured 72h cyber-incident report is filed.
+- **eIDAS** (EU Regulation 910/2014, amended 2024/1183): grants qualified electronic timestamps a legal presumption of time accuracy and data integrity (Art. 41).
+- **elliptic curve**: the algebraic structure over which Curve25519's key operations are defined, giving strong security at small key sizes.
+- **EN** (European Norm): harmonized European standard designation, as in ETSI EN 319 421.
+- **ENISA** (EU Agency for Cybersecurity): publishes NIS2 implementation guidance and operates the CRA Single Reporting Platform.
+- **envelope**: a wrapper format that binds one or more signatures to a payload without altering the payload bytes; Prooflog signs a C2SP signed note rather than a COSE or JWS envelope.
+- **ESSCertIDv2**: SHA-256-capable TSA certificate identifier (RFC 5816) that anchor verification must accept alongside the legacy form.
+- **ETSI** (European Telecommunications Standards Institute): European standards body whose EN 319 421/422 norms govern timestamp trust services.
+- **EU** (European Union): jurisdiction of NIS2, CRA, GDPR, DORA, and eIDAS.
+- **FADP / LPD** (Federal Act on Data Protection / Loi fédérale sur la protection des données): Swiss data-protection law whose Art. 24 requires breach notification to the FDPIC.
+- **FAU_GEN / FAU_STG**: Common Criteria audit-class controls for audit-record generation and protected audit storage (see CC).
+- **FDPIC / PFPDT** (Federal Data Protection and Information Commissioner / Préposé fédéral): Swiss authority receiving data-breach notifications via its DataBreach portal.
+- **FINMA**: Swiss financial-market supervisor requiring 24h/72h cyberattack reporting from supervised institutions.
+- **FINMASA**: Financial Market Supervision Act, legal basis (Art. 29(2)) of the FINMA reporting duty.
+- **FINRA 4511**: US broker-dealer record-keeping rule referencing SEC 17a-4 preservation formats.
+- **FIPS** (Federal Information Processing Standards): US federal standards series published by NIST.
+- **FIPS 140-3**: NIST cryptographic-module certification regime; motivates the pluggable AEAD interface.
+- **FIPS 180-4**: NIST Secure Hash Standard specifying SHA-256.
+- **FIPS 186-5**: NIST Digital Signature Standard that approved Ed25519 in 2023.
+- **fsync**: system call forcing buffered writes to durable storage; the spool and store acknowledge only after it succeeds.
+- **GCM** (Galois/Counter Mode): NIST block-cipher mode providing AEAD, specified in SP 800-38D.
+- **GDPR** (General Data Protection Regulation, EU 2016/679): its Art. 33 defines the 72h breach notification and the breach-register duty.
+- **GRC** (Governance, Risk and Compliance): tool category (Vanta, Drata) adjacent to but distinct from Prooflog.
+- **gRPC**: HTTP/2-based RPC framework used for agent-to-store and agent-to-verifier transport.
+- **hashedrekord**: Rekor entry type carrying only an artifact's SHA-256 digest, a signature, and the verifier's public key.
+- **HKDF** (HMAC-based Key Derivation Function): key-derivation primitive used inside age and HPKE.
+- **HMAC** (Hash-based Message Authentication Code): the standard construction to use where a keyed hash is needed (never bare SHA-256 over secret and data).
+- **HPKE** (Hybrid Public Key Encryption, RFC 9180): IETF public-key encryption construction; the documented fallback citation for key wrapping if age were ever reimplemented raw.
+- **HTTP** (Hypertext Transfer Protocol): the local loopback ingest interface of the agent (`POST /v1/events`).
+- **HTTP/2**: binary, multiplexed revision of HTTP that gRPC runs on.
+- **IEEE 754**: floating-point arithmetic standard whose number re-serialization ambiguity is one reason Prooflog hashes stored bytes instead of re-encoding.
+- **IETF** (Internet Engineering Task Force): standards body that publishes RFCs.
+- **IoC** (Indicator of Compromise): technical artifact of an attack that NIS2/CRA 72h notifications ask for where available.
+- **IR** (Implementing Regulation): EU act detailing a directive; IR 2024/2690 specifies NIS2 logging duties for digital-infrastructure entities.
+- **IRTF** (Internet Research Task Force): research arm of the IETF whose expired XChaCha draft is cited only as a rejection rationale.
+- **ISA / ISG / LSI** (Information Security Act / Informationssicherheitsgesetz / Loi sur la sécurité de l'information): Swiss law whose Arts. 74a-74h impose the 24h NCSC reporting duty.
+- **ISO / IEC** (International Organization for Standardization / International Electrotechnical Commission): bodies jointly publishing the 27000-series security standards and ISO/IEC 15408.
+- **ISO 8601**: international date-and-time notation standard that RFC 3339 profiles.
+- **ISO/IEC 27001**: information-security management standard whose Annex A controls 8.15-8.17 cover logging, monitoring, and clock synchronization.
+- **ISO/IEC 27037**: standard for identification, collection, acquisition, and preservation of digital evidence.
+- **ISO/IEC 27043**: incident-investigation standard whose "readiness processes" describe pre-incident evidence preparation.
+- **JCS** (JSON Canonicalization Scheme, RFC 8785): canonical JSON serialization, cited only as the rationale for hashing stored bytes instead.
+- **JSON** (JavaScript Object Notation): the record serialization format, pinned to exact bytes at acceptance time.
+- **JWS** (JSON Web Signature, RFC 7515): IETF signature envelope wrapping a base64-encoded payload; assessed alongside COSE and rejected as core format in favor of C2SP signed notes.
+- **MAC** (Message Authentication Code): keyed integrity tag; see HMAC and Poly1305.
+- **Merkle tree**: binary hash tree enabling compact inclusion and consistency proofs; built per source following RFC 6962.
+- **MSP / MSSP** (Managed [Security] Service Provider): IT outsourcing firms, both a target audience and entities directly bound by NIS2 IR 2024/2690.
+- **mTLS** (mutual TLS): transport security in which both client and server authenticate with certificates; enabled on gRPC links via `--tls-client-auth` on the store; required to restrict legal-hold and retention RPCs to authenticated callers.
+- **MVP** (Minimum Viable Product): the staged product scopes defined in objectif.md.
+- **NCSC / BACS** (National Cyber Security Centre / Bundesamt für Cybersicherheit): Swiss federal office receiving mandatory 24h cyberattack reports.
+- **NIS2** (Directive (EU) 2022/2555): EU cybersecurity directive with the 24h/72h/1-month incident-reporting cascade (Art. 23).
+- **NIST** (National Institute of Standards and Technology): US standards body behind the FIPS and SP series cited throughout.
+- **NIST SP 800-38D**: GCM specification, cited for the FIPS-mode AEAD alternative.
+- **NIST SP 800-57**: key-management recommendation defining cryptoperiods for the key-rotation policy.
+- **NIST SP 800-86**: guide for integrating forensics into incident response; the verification report doubles as its documentation artifact.
+- **NIST SP 800-92**: log-management guide whose dual-tier storage and source-monitoring recommendations Prooflog's spool/store split and heartbeats implement.
+- **nonce** (number used once): per-encryption unique value whose reuse under one key breaks AEAD security; Prooflog's single-use keys make nonce handling trivially safe.
+- **NTP** (Network Time Protocol, RFC 5905): the reference time-synchronization protocol agents report as their time source.
+- **NTS** (Network Time Security, RFC 8915): TLS-based authentication of NTP servers, recommended against time-spoofing.
+- **OPDo / DSV** (Ordonnance sur la protection des données / Datenschutzverordnung): Swiss ordinance whose Art. 15 lists breach-notification fields and imposes a 2-year breach-documentation duty.
+- **OTel** (OpenTelemetry): observability telemetry standard, a possible future bridge input (not a v1 ingest path).
+- **Poly1305**: one-time message authentication code, the integrity half of ChaCha20-Poly1305.
+- **protobuf** (Protocol Buffers): schema language of the gRPC transport; record bytes remain opaque inside it.
+- **Rekor**: Sigstore's public transparency log; its hashedrekord entries are a planned external anchoring target.
+- **REQ-C / REQ-E / REQ-R**: Prooflog's internal requirement IDs (crypto, evidence, regulatory) defined in docs/standards.md and referenced in code comments.
+- **RFC** (Request for Comments): IETF specification series; MUST/SHOULD/MAY in the requirements register follow RFC 2119 usage.
+- **RFC 3161**: Time-Stamp Protocol for obtaining signed timestamps from a TSA over a bare hash; the planned anchoring interface shape.
+- **RFC 3227**: guidelines for evidence collection defining the admissible/authentic/complete/reliable/believable criteria and chain of custody.
+- **RFC 3339**: internet timestamp profile of ISO 8601; Prooflog pins one exact UTC byte format of it.
+- **RFC 4122**: obsoleted UUID specification, superseded by RFC 9562.
+- **RFC 5816**: update allowing SHA-256 TSA certificate identification (ESSCertIDv2) in RFC 3161 tokens.
+- **RFC 5848**: signed syslog messages; studied as prior art whose adoption failure justifies sealing above the transport.
+- **RFC 5905**: NTP version 4 (see NTP).
+- **RFC 6962**: Certificate Transparency; source of the domain-separated Merkle tree construction (0x00 leaf / 0x01 node prefixes).
+- **RFC 7515**: JSON Web Signature (see JWS).
+- **RFC 7748**: defines the X25519 Diffie-Hellman function, including the mandatory all-zero shared-secret check.
+- **RFC 8032**: defines EdDSA/Ed25519 (see Ed25519).
+- **RFC 8439**: defines ChaCha20-Poly1305 (see ChaCha20-Poly1305).
+- **RFC 8785**: JSON Canonicalization Scheme (see JCS).
+- **RFC 8915**: Network Time Security (see NTS).
+- **RFC 9052**: COSE structures and process (see COSE).
+- **RFC 9162**: Certificate Transparency v2; the precise algorithmic reference for inclusion and consistency proofs.
+- **RFC 9180**: Hybrid Public Key Encryption (see HPKE).
+- **RFC 9562**: current UUID specification defining the time-ordered UUIDv7 used for segment IDs.
+- **RPC** (Remote Procedure Call): invoking a function on a remote service as if it were local; the model gRPC implements.
+- **RTS** (Regulatory Technical Standards): EU acts detailing DORA, including its incident-report templates and logging requirements.
+- **S3**: Amazon's object-storage API (with MinIO as compatible implementation); a future blob-storage and Object Lock anchoring target.
+- **SaaS** (Software as a Service): subscription software vendors, one of the target audiences.
+- **SBOM** (Software Bill of Materials): component inventory of a release, recorded via the `release.sbom_generated` event.
+- **SEC 17a-4**: US broker-dealer record-keeping rule whose 2022 "audit-trail alternative" recognizes tamper-evident trails as equivalent to WORM media.
+- **SHA-256** (Secure Hash Algorithm, 256-bit): hash function (FIPS 180-4) used for all hashing.
+- **SIEM** (Security Information and Event Management): the log-search/correlation product category Prooflog explicitly is not.
+- **sigsum**: minimalist transparency-log project whose checkpoint and cosignature formats C2SP standardizes.
+- **Sigstore**: open-source signing ecosystem operating the Rekor transparency log.
+- **signed note**: C2SP cleartext signature format (text, blank line, em-dash signature lines) wrapping every Prooflog checkpoint.
+- **SOC 2**: AICPA attestation framework whose CC7.2/CC7.3 criteria demand monitoring and log-integrity evidence.
+- **SP** (Special Publication): NIST's guidance document series (SP 800-*).
+- **SQLite**: embedded SQL database (CGO-free driver) used for the store's segment index.
+- **STREAM**: chunked AEAD construction used by age for payload encryption with counter nonces.
+- **stream cipher**: a symmetric cipher that encrypts data of arbitrary length one unit at a time rather than in fixed blocks; ChaCha20 is one.
+- **sumdb** (Go checksum database): Go's public transparency log for module hashes, origin of the signed-note tooling.
+- **syslog**: standard Unix log transport, a planned bridge input (not a v1 ingest path).
+- **TLS** (Transport Layer Security): encryption for all network links (see mTLS).
+- **tlog-checkpoint**: C2SP format for a signed tree head (origin, size, root) emitted at every segment seal and enforced append-only by the verifier.
+- **transparency log**: a public, append-only, cryptographically verifiable log (Rekor, sumdb) whose contents anyone can audit for consistency.
+- **TSA** (Time-Stamping Authority): trusted third party issuing RFC 3161 timestamps; qualified TSAs carry eIDAS legal effect.
+- **TSC** (Trust Services Criteria): the control criteria of SOC 2 (see SOC 2).
+- **TSP** (Time-Stamp Protocol): the RFC 3161 protocol spoken with a TSA.
+- **UTC** (Coordinated Universal Time): the only timezone allowed in Prooflog timestamps.
+- **UUID / UUIDv7** (Universally Unique Identifier): 128-bit identifier; version 7 (RFC 9562) is time-ordered and used for segment IDs.
+- **WORM** (Write Once Read Many): non-rewritable storage model used in compliance archiving; contrast with Prooflog's audit-trail approach.
+- **X25519**: Diffie-Hellman key-agreement function over Curve25519 (RFC 7748) used for the org's age recipient key.
+- **XChaCha20-Poly1305**: extended-nonce ChaCha20-Poly1305 variant, rejected because it is standardized nowhere; single-use keys remove its motivation.

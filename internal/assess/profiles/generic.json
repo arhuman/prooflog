@@ -1,0 +1,10 @@
+{
+  "name": "generic",
+  "description": "Generic JSONL: one object per line with a sequence and an RFC3339 timestamp. The universal fallback; other profiles are presets of this.",
+  "source_id":  { "field": "source" },
+  "timestamp":  { "field": "time", "layout": "rfc3339" },
+  "sequence":   { "field": "seq" },
+  "actor":      { "field": "actor" },
+  "event_type": { "field": "type" },
+  "heartbeat":  { "field": "type", "equals": "heartbeat" }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "cloudtrail",
+  "description": "AWS CloudTrail records. Unwrap the {\"Records\":[...]} envelope first (jq -c '.Records[]'). No sequence: gap analysis is impossible; coverage and time-order analysis apply.",
+  "source_id":  { "field": "eventSource", "default": "cloudtrail" },
+  "timestamp":  { "field": "eventTime", "layout": "rfc3339" },
+  "sequence":   null,
+  "actor":      { "field": "userIdentity.arn" },
+  "event_type": { "field": "eventName" },
+  "heartbeat":  null
+}

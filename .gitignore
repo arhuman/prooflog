@@ -1,0 +1,9 @@
+/bin/
+/dist/
+*.plog
+*.key
+.env
+.claude/ADR.md
+.claude/doc/
+coverage.out
+/demo/

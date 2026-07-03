@@ -1,0 +1,7 @@
+# Prooflog regulatory context
+
+Prooflog helps produce technical evidence that is usable in regulated contexts. It does not certify or guarantee compliance with any regulation.
+
+Organizations subject to Swiss mandatory reporting (ISA/LSI Arts. 74a–74h, in force 1 April 2025) must submit an initial incident report to the NCSC within 24 hours of discovery, followed by a completed report within 14 days. Prooflog's tamper-evidenced event timeline, continuity report, and cryptographic proof of log integrity give incident responders a structured, defensible starting point. The same evidence model covers the NIS2 Art. 23 notification cascade (24h, 72h, 30-day), CRA Art. 14 vulnerability and incident reporting obligations (applicable from 11 September 2026), and the LPD/OPDo Art. 24/Art. 15 breach documentation duty, including the two-year breach register required by OPDo Art. 15(6). The report generator includes the discovery timestamp as a tamper-evidenced field, from which regulatory deadline clocks are computed: proving when the clock started is a concrete output. The determination of whether a reporting obligation is triggered, and the legal interpretation of the evidence, remain the responsibility of the operator and their counsel.
+
+Where the Store and Verifier run is itself a legal decision: envelope metadata is unencrypted and may be personal data, so component placement across borders falls under GDPR Chapter V / FADP Art. 16. See [`docs/data_residency.md`](data_residency.md) for the deployment matrix.

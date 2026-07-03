@@ -1,0 +1,211 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/arhuman/prooflog/internal/evidence"
+	"github.com/arhuman/prooflog/internal/keys"
+	"github.com/arhuman/prooflog/internal/note"
+	"github.com/arhuman/prooflog/internal/report"
+	"github.com/arhuman/prooflog/internal/verifier"
+	"github.com/arhuman/prooflog/internal/version"
+)
+
+// runReport generates the Markdown continuity/integrity report for a source over
+// a period, from a spool or a store pull. `report verify <file>` checks a signed
+// report's footer signature (REQ-E-01, REQ-E-10).
+func runReport(args []string) error {
+	if len(args) > 0 && args[0] == "verify" {
+		return runReportVerify(args[1:])
+	}
+
+	fs := flag.NewFlagSet("report", flag.ContinueOnError)
+	spoolDir := fs.String("spool", "", "local spool directory")
+	storeAddr := fs.String("store-addr", "", "pull records from this store instead of a spool")
+	source := fs.String("source", "", "source id (required with --store-addr)")
+	checkpoints := fs.String("checkpoints", "", "directory of signed checkpoints (verifier data dir)")
+	anchors := fs.String("anchors", "", "directory of anchor receipts (default: none)")
+	keysPath := fs.String("keys", "", "registered keys JSON for checkpoint signature checks")
+	period := fs.String("period", "", "reporting window YYYY-MM-DD:YYYY-MM-DD (default: derived from records)")
+	org := fs.String("org", "", "organization name for the report header")
+	reportID := fs.String("report-id", "", "report id (default: rpt-<date>)")
+	verifierName := fs.String("verifier-name", "prooflog local verifier", "verifier identity for the header")
+	verifierOperator := fs.String("verifier-operator", "", "verifier operator name; empty or =org means a self-hosted anchor")
+	storeLocality := fs.String("store-locality", "", "operator-declared store jurisdiction (e.g. CH); recorded, not proven")
+	verifierLocality := fs.String("verifier-locality", "", "operator-declared verifier jurisdiction (e.g. EU/DE); recorded, not proven")
+	heartbeatInterval := fs.Duration("heartbeat-interval", 0, "expected heartbeat interval (default: policy 60s)")
+	signKey := fs.String("sign-key", "", "ed25519 key file to sign the report as a C2SP signed note")
+	out := fs.String("out", "", "output file (default: stdout)")
+	tls := tlsFlags(fs)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	start, end, err := parsePeriod(*period)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	opts := verifyOpts{
+		spoolDir:          *spoolDir,
+		storeAddr:         *storeAddr,
+		sourceID:          *source,
+		checkpointsDir:    *checkpoints,
+		anchorsDir:        *anchors,
+		keysPath:          *keysPath,
+		heartbeatInterval: *heartbeatInterval,
+		tls:               tls,
+	}
+	res, _, err := gatherResult(ctx, opts)
+	if err != nil {
+		return err
+	}
+
+	// No explicit period: derive it from the first/last verified record so the
+	// header never renders a degenerate zero-width window (REQ-E-10).
+	if start.IsZero() && end.IsZero() {
+		start, end = res.TimeFirst, res.TimeLast
+	}
+
+	id := *reportID
+	if id == "" {
+		id = "rpt-" + time.Now().UTC().Format("2006-01-02")
+	}
+	selfHosted := *verifierOperator == "" || *verifierOperator == *org
+	binaryHash := binarySelfHash()
+	meta := evidence.Meta{
+		ReportID:           id,
+		Org:                *org,
+		PeriodStart:        start,
+		PeriodEnd:          end,
+		Generated:          time.Now().UTC(),
+		VerifierName:       *verifierName,
+		VerifierOperator:   *verifierOperator,
+		SelfHosted:         selfHosted,
+		Reproduce:          reproduceCommand(opts, *period),
+		ToolVersion:        version.Version,
+		VerifierBinaryHash: binaryHash,
+		StoreLocality:      *storeLocality,
+		VerifierLocality:   *verifierLocality,
+	}
+
+	var signer *keys.AgentKey
+	if *signKey != "" {
+		k, err := keys.LoadAgentKey(*signKey)
+		if err != nil {
+			return err
+		}
+		signer = &k
+		meta.VerifierKeyID = fmt.Sprintf("%x", k.KeyID())
+	}
+
+	model := report.BuildModel(meta, []verifier.SourceResult{res})
+	doc, err := report.Markdown{}.Render(model)
+	if err != nil {
+		return err
+	}
+	doc, err = appendSignature(doc, signer, reportFileName(*out), version.Version, binaryHash)
+	if err != nil {
+		return err
+	}
+
+	if *out == "" {
+		_, err := os.Stdout.Write(doc)
+		return err
+	}
+	if err := os.WriteFile(*out, doc, 0o644); err != nil {
+		return fmt.Errorf("write report: %w", err)
+	}
+	fmt.Fprintf(os.Stderr, "report written to %s\n", *out)
+	return nil
+}
+
+// appendSignature adds the report signature footer: a C2SP signed note over the
+// full report body when a signing key is given, or an explicit "not configured"
+// footer otherwise (no silent caps; REQ-E-10).
+func appendSignature(doc []byte, signer *keys.AgentKey, fileName, toolVersion, binaryHash string) ([]byte, error) {
+	provenance := fmt.Sprintf("\n---\n\n```\nGenerated by:     prooflog %s\nVerifier binary:  %s (SHA-256)\n```\n",
+		toolVersion, binaryHash)
+	doc = append(doc, provenance...)
+	if signer == nil {
+		footer := "\n---\n\n```\nReport signature: not configured " +
+			"(re-run with --sign-key <ed25519 key file> to sign)\n```\n"
+		return append(doc, footer...), nil
+	}
+	header := fmt.Sprintf("\n---\n\n```\nReport signed by: %s\nKey ID:           %x (Ed25519)\n"+
+		"Verify with:      prooflog report verify %s\n```\n",
+		signer.Name, signer.KeyID(), fileName)
+	signed, err := note.Sign(string(doc)+header, signer.Name, signer.Private)
+	if err != nil {
+		return nil, fmt.Errorf("sign report: %w", err)
+	}
+	return []byte(signed), nil
+}
+
+// runReportVerify checks the footer signature of a signed report against a key.
+func runReportVerify(args []string) error {
+	fs := flag.NewFlagSet("report verify", flag.ContinueOnError)
+	verifyKey := fs.String("verify-key", "", "ed25519 key file whose public key signed the report")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("usage: prooflog report verify [--verify-key <key>] <file>")
+	}
+	if *verifyKey == "" {
+		return fmt.Errorf("--verify-key is required")
+	}
+	data, err := os.ReadFile(fs.Arg(0))
+	if err != nil {
+		return fmt.Errorf("read report: %w", err)
+	}
+	k, err := keys.LoadAgentKey(*verifyKey)
+	if err != nil {
+		return err
+	}
+	if _, err := note.Verify(string(data), k.Name, k.Public); err != nil {
+		return fmt.Errorf("signature invalid: %w", err)
+	}
+	fmt.Printf("report signature valid — signed by %s (key %x)\n", k.Name, k.KeyID())
+	return nil
+}
+
+// reproduceCommand renders the exact offline `prooflog verify` command that
+// re-verifies this report from the same inputs (REQ-E-10).
+func reproduceCommand(o verifyOpts, period string) string {
+	var b strings.Builder
+	b.WriteString("prooflog verify")
+	switch {
+	case o.spoolDir != "":
+		fmt.Fprintf(&b, " \\\n  --spool %s", o.spoolDir)
+	case o.storeAddr != "":
+		fmt.Fprintf(&b, " \\\n  --store-addr %s --source %s", o.storeAddr, o.sourceID)
+	}
+	if o.checkpointsDir != "" {
+		fmt.Fprintf(&b, " \\\n  --checkpoints %s", o.checkpointsDir)
+	}
+	if o.anchorsDir != "" {
+		fmt.Fprintf(&b, " \\\n  --anchors %s", o.anchorsDir)
+	}
+	if o.keysPath != "" {
+		fmt.Fprintf(&b, " \\\n  --keys %s", o.keysPath)
+	}
+	if period != "" {
+		fmt.Fprintf(&b, " \\\n  --period %s", period)
+	}
+	return b.String()
+}
+
+func reportFileName(out string) string {
+	if out == "" {
+		return "<report.md>"
+	}
+	return filepath.Base(out)
+}

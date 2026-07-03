@@ -1,0 +1,171 @@
+syntax = "proto3";
+
+package prooflog.v1;
+
+option go_package = "github.com/arhuman/prooflog/proto/prooflog/v1;prooflogv1";
+
+// Frame carries the exact stored bytes of one record plus its SHA-256. The
+// transport never re-serializes records: record_bytes are byte-for-byte the
+// spool frame body, so every hash and Merkle root reproduces (REQ-C-04).
+message Frame {
+  bytes record_bytes = 1;
+  bytes record_hash = 2;
+}
+
+// SegmentMeta is the header of an UploadSegment stream. It carries everything
+// the store needs to persist and dedup a segment without parsing record bytes:
+// the UUIDv7 id, the source, the sealed seq range, the tree root at seal time,
+// and the signed checkpoint (REQ-C-07, REQ-C-14). Dedup key is
+// (source_id, seq_first, seq_last, root).
+message SegmentMeta {
+  string segment_id = 1;
+  string source_id = 2;
+  uint64 seq_first = 3;
+  uint64 seq_last = 4;
+  bytes root = 5;
+  string checkpoint = 6;
+}
+
+// UploadRequest is one message of the UploadSegment stream: the first message
+// MUST be a meta header, every subsequent message a frame in seq order.
+message UploadRequest {
+  oneof kind {
+    SegmentMeta meta = 1;
+    Frame frame = 2;
+  }
+}
+
+// SegmentAck confirms durable persistence of a segment: the highest seq the
+// store fsynced and committed, the segment id, and whether it was already
+// present (dedup).
+message SegmentAck {
+  uint64 acked_seq = 1;
+  string segment_id = 2;
+  bool duplicate = 3;
+}
+
+// PullRequest asks the store for every stored frame of a source with
+// seq >= from_seq, in seq order, for the verifier.
+message PullRequest {
+  string source_id = 1;
+  uint64 from_seq = 2;
+}
+
+// SignedNote wraps a C2SP signed note (a tlog-checkpoint) with routing hints.
+message SignedNote {
+  string note = 1;
+  string source_id = 2;
+  string origin = 3;
+}
+
+// CheckpointAck acknowledges receipt of a checkpoint.
+message CheckpointAck {
+  bool accepted = 1;
+  string reason = 2;
+}
+
+// Hold is a legal hold: it exempts a source (or a seq range within it) from
+// retention deletion until released. seq_first/seq_last are meaningful only
+// when has_range is true; otherwise the hold covers the whole source. An empty
+// released_at means the hold is still active.
+message Hold {
+  string hold_id = 1;
+  string source_id = 2;
+  uint64 seq_first = 3;
+  uint64 seq_last = 4;
+  bool has_range = 5;
+  string reason = 6;
+  string placed_by = 7;
+  string placed_at = 8;
+  string released_at = 9;
+}
+
+// PlaceHoldRequest places a legal hold. reason is required. When has_range is
+// false the hold covers the whole source regardless of seq_first/seq_last.
+message PlaceHoldRequest {
+  string source_id = 1;
+  uint64 seq_first = 2;
+  uint64 seq_last = 3;
+  bool has_range = 4;
+  string reason = 5;
+  string placed_by = 6;
+}
+
+// ReleaseHoldRequest releases the hold with hold_id.
+message ReleaseHoldRequest {
+  string hold_id = 1;
+}
+
+// ListHoldsRequest lists holds, optionally filtered to one source. page_size 0
+// means the server default; the server caps oversized values. page_token is an
+// opaque cursor from a prior response's next_page_token; empty starts the first
+// page.
+message ListHoldsRequest {
+  string source_id = 1;
+  uint32 page_size = 2;
+  string page_token = 3;
+}
+
+// ListHoldsResponse carries the matching holds. An empty next_page_token means
+// the listing is complete; otherwise pass it as the next request's page_token.
+message ListHoldsResponse {
+  repeated Hold holds = 1;
+  string next_page_token = 2;
+}
+
+// Tombstone is the permanent record of a segment whose blob was deleted under
+// retention: the row survives forever so the verifier reports an expired-but-
+// retained range instead of a false gap. root is the RFC 6962 tree root at seal.
+message Tombstone {
+  string segment_id = 1;
+  string source_id = 2;
+  uint64 seq_first = 3;
+  uint64 seq_last = 4;
+  bytes root = 5;
+  string deleted_at = 6;
+  string policy = 7;
+}
+
+// ListTombstonesRequest lists tombstones, optionally filtered to one source.
+// page_size 0 means the server default; the server caps oversized values.
+// page_token is an opaque cursor from a prior response's next_page_token; empty
+// starts the first page.
+message ListTombstonesRequest {
+  string source_id = 1;
+  uint32 page_size = 2;
+  string page_token = 3;
+}
+
+// ListTombstonesResponse carries the matching tombstones. An empty
+// next_page_token means the listing is complete; otherwise pass it as the next
+// request's page_token.
+message ListTombstonesResponse {
+  repeated Tombstone tombstones = 1;
+  string next_page_token = 2;
+}
+
+// StoreService is the central store: it accepts uploaded segments, serves
+// stored frames to the verifier, and opportunistically forwards checkpoints.
+service StoreService {
+  // UploadSegment streams a segment (meta header then frames) and returns an
+  // ack only after the blob is fsynced and the index committed (REQ-E-04).
+  rpc UploadSegment(stream UploadRequest) returns (SegmentAck);
+  // PullSegments streams back the exact stored frames of a source from a seq.
+  rpc PullSegments(PullRequest) returns (stream Frame);
+  // SubmitCheckpoint records a checkpoint the store may forward to the verifier.
+  rpc SubmitCheckpoint(SignedNote) returns (CheckpointAck);
+  // PlaceHold places a legal hold exempting a source (or range) from deletion.
+  rpc PlaceHold(PlaceHoldRequest) returns (Hold);
+  // ReleaseHold releases a previously placed legal hold.
+  rpc ReleaseHold(ReleaseHoldRequest) returns (Hold);
+  // ListHolds lists legal holds, optionally filtered to one source.
+  rpc ListHolds(ListHoldsRequest) returns (ListHoldsResponse);
+  // ListTombstones lists segments deleted under retention (blob gone, row kept).
+  rpc ListTombstones(ListTombstonesRequest) returns (ListTombstonesResponse);
+}
+
+// VerifierService receives checkpoints directly from agents so they survive a
+// store compromise (REQ-C-07).
+service VerifierService {
+  rpc SubmitCheckpoint(SignedNote) returns (CheckpointAck);
+}
